@@ -41,8 +41,31 @@ local function near(player, object)
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	return root and humanoid and humanoid.Health > 0 and (root.Position - object.Position).Magnitude <= 12
 end
+local function updateIdolVisual(player)
+	local character = player.Character
+	if not character then return end
+	local old = character:FindFirstChild("CarriedIdolVisual")
+	if old then old:Destroy() end
+	local value = player:GetAttribute("CarriedIdol") or 0
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if value <= 0 or not root then return end
+	local idol = Instance.new("Part")
+	idol.Name = "CarriedIdolVisual"
+	idol.Size = Vector3.new(1.2, 1.7, 1.2)
+	idol.Color = Color3.fromRGB(218, 164, 49)
+	idol.Material = Enum.Material.Metal
+	idol.Massless = true
+	idol.CanCollide = false
+	idol.CFrame = root.CFrame * CFrame.new(1.4, 0, -1.3)
+	idol.Parent = character
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = root
+	weld.Part1 = idol
+	weld.Parent = idol
+end
 local function setupPlayer(player)
 	player:SetAttribute("CarriedIdol", 0)
+	player:GetAttributeChangedSignal("CarriedIdol"):Connect(function() updateIdolVisual(player) end)
 	local function onCharacter(character)
 		local humanoid = character:WaitForChild("Humanoid")
 		humanoid.Died:Connect(function() player:SetAttribute("CarriedIdol", 0) end)
@@ -205,21 +228,49 @@ useDice.OnServerEvent:Connect(function(player, name)
 	local die = inventory and inventory:FindFirstChild(name)
 	if not root or not humanoid or humanoid.Health <= 0 or not die or die.Value < 1 then return end
 	die.Value -= 1
-	local roll = random:NextInteger(1, 6)
-	if name == "Heal" then
-		humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + roll * 5)
-	elseif name == "Teleport" then
-		character:PivotTo(CFrame.new(0, 5, 15))
-	elseif name == "AntiGravity" then
-		local attachment = Instance.new("Attachment")
-		attachment.Parent = root
-		local force = Instance.new("VectorForce")
-		force.Attachment0 = attachment
-		force.Force = Vector3.new(0, root.AssemblyMass * Workspace.Gravity * 0.65, 0)
-		force.Parent = root
-		task.delay(5, function() force:Destroy(); attachment:Destroy() end)
-	elseif name == "Hazard" then
-		humanoid:TakeDamage(roll * 3)
-	end
-	message.Value = player.DisplayName .. " использует " .. name .. ": " .. roll
+	local projectile = Instance.new("Part")
+	projectile.Name = "ThrownDie"
+	projectile.Size = Vector3.new(1.2, 1.2, 1.2)
+	projectile.Material = Enum.Material.Neon
+	local colors = {Heal = Color3.fromRGB(80, 220, 120), Teleport = Color3.fromRGB(130, 90, 230), AntiGravity = Color3.fromRGB(120, 200, 255), Hazard = Color3.fromRGB(255, 100, 50)}
+	projectile.Color = colors[name]
+	projectile.CFrame = root.CFrame * CFrame.new(0, 1, -4)
+	projectile.Parent = Workspace
+	projectile:SetNetworkOwner(nil)
+	projectile.AssemblyLinearVelocity = root.CFrame.LookVector * 30 + Vector3.new(0, 17, 0)
+	projectile.AssemblyAngularVelocity = Vector3.new(8, 12, 7)
+	message.Value = player.DisplayName .. " бросает кубик: " .. name
+	task.delay(2, function()
+		if not projectile.Parent then return end
+		local position = projectile.Position
+		projectile.Anchored = true
+		projectile.CanCollide = false
+		projectile.Transparency = 0.6
+		local effect = Instance.new("PointLight")
+		effect.Color = colors[name]
+		effect.Brightness = 5
+		effect.Range = 16
+		effect.Parent = projectile
+		if name == "Heal" or name == "Hazard" then
+			for _, target in Players:GetPlayers() do
+				local targetCharacter = target.Character
+				local targetRoot = targetCharacter and targetCharacter:FindFirstChild("HumanoidRootPart")
+				local targetHumanoid = targetCharacter and targetCharacter:FindFirstChildOfClass("Humanoid")
+				if targetRoot and targetHumanoid and targetHumanoid.Health > 0 and (targetRoot.Position - position).Magnitude <= 12 then
+					if name == "Heal" then targetHumanoid.Health = math.min(targetHumanoid.MaxHealth, targetHumanoid.Health + 25) else targetHumanoid:TakeDamage(20) end
+				end
+			end
+		elseif name == "Teleport" and player.Character == character and humanoid.Health > 0 then
+			character:PivotTo(CFrame.new(0, 5, 15))
+		elseif name == "AntiGravity" and root.Parent and humanoid.Health > 0 then
+			local attachment = Instance.new("Attachment")
+			attachment.Parent = root
+			local force = Instance.new("VectorForce")
+			force.Attachment0 = attachment
+			force.Force = Vector3.new(0, root.AssemblyMass * Workspace.Gravity * 0.65, 0)
+			force.Parent = root
+			task.delay(5, function() force:Destroy(); attachment:Destroy() end)
+		end
+		task.delay(1, function() projectile:Destroy() end)
+	end)
 end)

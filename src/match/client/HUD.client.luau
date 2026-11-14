@@ -32,22 +32,33 @@ end
 player:GetAttributeChangedSignal("CarriedIdol"):Connect(updateIdol)
 updateIdol()
 local list = Instance.new("Frame")
-list.Size = UDim2.new(0, 160, 0, 180)
-list.Position = UDim2.new(0, 10, 0.5, -90)
+list.AnchorPoint = Vector2.new(0.5, 1)
+list.Size = UDim2.new(0.9, 0, 0, 62)
+list.Position = UDim2.new(0.5, 0, 1, -20)
 list.BackgroundTransparency = 1
 list.Parent = gui
 local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 4)
+layout.FillDirection = Enum.FillDirection.Horizontal
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.Padding = UDim.new(0, 6)
 layout.Parent = list
+local display = {Heal = "Лечение", Teleport = "Телепорт", AntiGravity = "Невесомость", Hazard = "Опасность"}
 for _, name in {"Heal", "Teleport", "AntiGravity", "Hazard"} do
 	local count = inventory:WaitForChild(name)
 	local button = Instance.new("TextButton")
-	button.Size = UDim2.new(1, 0, 0, 40)
-	button.BackgroundColor3 = Color3.fromRGB(55, 45, 60)
+	button.Size = UDim2.new(0.23, 0, 1, 0)
+	button.BackgroundColor3 = Color3.fromRGB(48, 38, 43)
 	button.TextColor3 = Color3.new(1, 1, 1)
 	button.TextScaled = true
 	button.Parent = list
-	local function update() button.Text = name .. " (" .. count.Value .. ")" end
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = button
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(177, 139, 86)
+	stroke.Thickness = 1
+	stroke.Parent = button
+	local function update() button.Text = display[name] .. "\n×" .. count.Value end
 	count.Changed:Connect(update)
 	button.Activated:Connect(function() state.UseDice:FireServer(name) end)
 	update()

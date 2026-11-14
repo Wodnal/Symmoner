@@ -1,7 +1,7 @@
 {
   "className": "Model",
   "children": [
-    {"name":"Floor","className":"Part","properties":{"Anchored":true,"Size":[90,2,90],"Position":[0,0,0],"Color":[0.22,0.18,0.16]}},
+    {"name":"Floor","className":"Part","properties":{"Anchored":true,"Size":[90,2,90],"Position":[0,0,0],"Color":[0.22,0.18,0.16],"Material":"WoodPlanks"}},
     {"name":"NorthWall","className":"Part","properties":{"Anchored":true,"Size":[90,20,2],"Position":[0,11,-44],"Color":[0.16,0.13,0.12]}},
     {"name":"SouthWall","className":"Part","properties":{"Anchored":true,"Size":[90,20,2],"Position":[0,11,44],"Color":[0.16,0.13,0.12]}},
     {"name":"WestWall","className":"Part","properties":{"Anchored":true,"Size":[2,20,90],"Position":[-44,11,0],"Color":[0.16,0.13,0.12]}},
