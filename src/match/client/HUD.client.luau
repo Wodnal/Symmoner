@@ -18,6 +18,19 @@ label.Parent = gui
 local function updateMessage() label.Text = state.Message.Value end
 state.Message.Changed:Connect(updateMessage)
 updateMessage()
+local idol = Instance.new("TextLabel")
+idol.Size = UDim2.fromOffset(240, 32)
+idol.Position = UDim2.new(1, -250, 0, 70)
+idol.BackgroundColor3 = Color3.fromRGB(45, 35, 22)
+idol.TextColor3 = Color3.fromRGB(255, 220, 130)
+idol.TextScaled = true
+idol.Parent = gui
+local function updateIdol()
+	local amount = player:GetAttribute("CarriedIdol") or 0
+	idol.Text = if amount > 0 then "Идол: " .. amount .. " — к доске" else "Идол: нет"
+end
+player:GetAttributeChangedSignal("CarriedIdol"):Connect(updateIdol)
+updateIdol()
 local list = Instance.new("Frame")
 list.Size = UDim2.new(0, 160, 0, 180)
 list.Position = UDim2.new(0, 10, 0.5, -90)

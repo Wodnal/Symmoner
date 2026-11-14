@@ -42,6 +42,13 @@ local function near(player, object)
 	return root and humanoid and humanoid.Health > 0 and (root.Position - object.Position).Magnitude <= 12
 end
 local function setupPlayer(player)
+	player:SetAttribute("CarriedIdol", 0)
+	local function onCharacter(character)
+		local humanoid = character:WaitForChild("Humanoid")
+		humanoid.Died:Connect(function() player:SetAttribute("CarriedIdol", 0) end)
+	end
+	player.CharacterAdded:Connect(onCharacter)
+	if player.Character then task.spawn(onCharacter, player.Character) end
 	local folder = Instance.new("Folder")
 	folder.Name = "DiceInventory"
 	folder.Parent = player
@@ -62,57 +69,127 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 local BOARD_END = 30
-local boardPrompt = promptOn(board, "Бросить", "Проклятая доска")
-local boardReady = true
-local finished = false
+local TARGET_POINTS = 300
+local stage = 0
+local points = 0
+local totalPoints = 0
+local phase = "READY"
+local boardPrompt = promptOn(board, "Бросить кубик этапа", "Проклятая доска")
+local depositPrompt = promptOn(board, "Сдать идола", "Доска")
+local boardInfo = Instance.new("BillboardGui")
+boardInfo.Name = "BoardInfo"
+boardInfo.Size = UDim2.fromOffset(300, 70)
+boardInfo.StudsOffset = Vector3.new(0, 4, 0)
+boardInfo.AlwaysOnTop = true
+boardInfo.Parent = board
+local boardLabel = Instance.new("TextLabel")
+boardLabel.Size = UDim2.fromScale(1, 1)
+boardLabel.BackgroundTransparency = 1
+boardLabel.TextColor3 = Color3.fromRGB(255, 220, 143)
+boardLabel.TextStrokeTransparency = 0
+boardLabel.TextScaled = true
+boardLabel.Font = Enum.Font.GothamBold
+boardLabel.Parent = boardInfo
+local function updateBoard()
+	if phase == "READY" then
+		boardLabel.Text = "КУБИК ГОТОВ\nВернитесь в безопасную зону!"
+	elseif phase == "EXPLORE" then
+		boardLabel.Text = "ДО СЛЕДУЮЩЕГО КУБИКА: " .. math.max(0, TARGET_POINTS - points)
+	else
+		boardLabel.Text = "ПОБЕДА!"
+	end
+	boardPrompt.Enabled = phase == "READY"
+	depositPrompt.Enabled = phase == "EXPLORE"
+end
+local function insideSafeZone(root)
+	local offset = root.Position - board.Position
+	return math.abs(offset.X) <= 17 and math.abs(offset.Z) <= 17 and math.abs(offset.Y) <= 12
+end
+local resetIdols
 boardPrompt.Triggered:Connect(function(player)
-	if finished or not boardReady or not near(player, board) then return end
-	boardReady = false
+	if phase ~= "READY" or not near(player, board) then return end
+	phase = "TRANSITION"
 	boardPrompt.Enabled = false
+	local casualties = 0
+	if stage > 0 then
+		for _, participant in Players:GetPlayers() do
+			local character = participant.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			if root and humanoid and humanoid.Health > 0 and not insideSafeZone(root) then
+				humanoid.Health = 0
+				casualties += 1
+			end
+		end
+	end
 	local roll = random:NextInteger(1, 6)
+	stage += 1
 	progress = math.min(BOARD_END, progress + roll)
 	if progress >= BOARD_END then
-		finished = true
-		message.Value = "Победа! Команда достигла конца доски: " .. progress .. "/" .. BOARD_END
-		return
-	end
-	local event = random:NextInteger(1, 3)
-	local description
-	if event == 1 then
-		description = "Проклятие ранит всех!"
-		for _, participant in Players:GetPlayers() do
-			local humanoid = participant.Character and participant.Character:FindFirstChildOfClass("Humanoid")
-			if humanoid and humanoid.Health > 0 then humanoid:TakeDamage(10) end
-		end
-	elseif event == 2 then
-		description = "Доска исцеляет команду."
-		for _, participant in Players:GetPlayers() do
-			local humanoid = participant.Character and participant.Character:FindFirstChildOfClass("Humanoid")
-			if humanoid and humanoid.Health > 0 then humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + 10) end
-		end
+		phase = "FINISHED"
+		message.Value = "Победа! Доска пройдена. Общие очки: " .. totalPoints
 	else
-		description = "В доме тихо... пока что."
+		points = 0
+		phase = "EXPLORE"
+		if resetIdols then resetIdols() end
+		message.Value = "Этап " .. stage .. ": выпало " .. roll .. ", путь " .. progress .. "/" .. BOARD_END .. ". Найдите идолов!" .. (if casualties > 0 then " Вне хаба погибло: " .. casualties else "")
 	end
-	message.Value = player.DisplayName .. " бросает " .. roll .. " | " .. progress .. "/" .. BOARD_END .. " | " .. description
-	task.delay(4, function() boardReady = true; boardPrompt.Enabled = true end)
+	updateBoard()
 end)
+depositPrompt.Triggered:Connect(function(player)
+	if phase ~= "EXPLORE" or not near(player, board) then return end
+	local value = player:GetAttribute("CarriedIdol") or 0
+	if value <= 0 then return end
+	player:SetAttribute("CarriedIdol", 0)
+	points += value
+	totalPoints += value
+	if points >= TARGET_POINTS then
+		phase = "READY"
+		message.Value = "Следующий кубик готов! Все игроки должны вернуться к доске."
+	else
+		message.Value = player.DisplayName .. " сдаёт идола: +" .. value .. ". Осталось " .. (TARGET_POINTS - points)
+	end
+	updateBoard()
+end)
+updateBoard()
 
+local searches = {}
+resetIdols = function()
+	for _, search in searches do
+		search.available = true
+		search.prompt.Enabled = true
+	end
+end
 for index = 1, 4 do
 	local container = world:WaitForChild("Search" .. index)
 	local prompt = promptOn(container, "Обыскать", "Старый ящик")
-	local available = true
+	local search = {available = true, prompt = prompt}
+	table.insert(searches, search)
 	prompt.Triggered:Connect(function(player)
 		local inventory = inventories[player]
-		if not available or not inventory or not near(player, container) then return end
-		local total = 0
-		for _, value in inventory:GetChildren() do total += value.Value end
-		if total >= 5 then return end
-		available = false
+		if phase ~= "EXPLORE" or not search.available or not inventory or not near(player, container) then return end
+		if (player:GetAttribute("CarriedIdol") or 0) > 0 then
+			message.Value = "Сначала отнесите найденного идола к доске."
+			return
+		end
+		search.available = false
 		prompt.Enabled = false
-		local die = inventory:FindFirstChild(names[random:NextInteger(1, #names)])
-		die.Value += 1
-		message.Value = player.DisplayName .. " находит кубик: " .. die.Name
-		task.delay(30, function() available = true; prompt.Enabled = true end)
+		task.delay(45, function()
+			search.available = true
+			prompt.Enabled = true
+		end)
+		local total = 0
+		for _, die in inventory:GetChildren() do total += die.Value end
+		if random:NextInteger(1, 4) == 1 and total < 3 then
+			local die = inventory:FindFirstChild(names[random:NextInteger(1, #names)])
+			die.Value += 1
+			message.Value = player.DisplayName .. " находит кубик: " .. die.Name
+			return
+		end
+		local values = {100, 150, 200}
+		local value = values[random:NextInteger(1, #values)]
+		player:SetAttribute("CarriedIdol", value)
+		message.Value = player.DisplayName .. " нашёл идола на " .. value .. " очков. Верните его к доске."
 	end)
 end
 
