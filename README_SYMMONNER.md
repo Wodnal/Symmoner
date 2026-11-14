@@ -5,7 +5,7 @@
 ## Два отдельных place
 
 1. Создайте и опубликуйте experience в Roblox Studio. Начальный place будет публичным лобби.
-2. Внутри того же experience создайте и опубликуйте второй place для матча. Скопируйте его **place ID** и вставьте в `DESTINATION_PLACE_ID` в `src/lobby/Lobby.server.luau` вместо `0`.
+2. Для проекта указаны place ID лобби `101772489442671` и игровой комнаты `85770153975326`. ID игровой комнаты уже записан в `DESTINATION_PLACE_ID` в `src/lobby/Lobby.server.luau`. Убедитесь, что оба place опубликованы внутри одного experience.
 3. В лобби добавьте `src/lobby/Lobby.server.luau` как Script в `ServerScriptService`, а `src/lobby/Lobby.client.luau` как LocalScript в `StarterPlayer > StarterPlayerScripts`. Подробнее: [LOBBY_SETUP.md](LOBBY_SETUP.md).
 4. В матче добавьте `src/match/server/Game.server.luau` как Script в `ServerScriptService`, а `src/match/client/HUD.client.luau` как LocalScript в `StarterPlayer > StarterPlayerScripts`.
 5. Опубликуйте оба place. Проверяйте переходы между place из опубликованного Roblox-клиента; обычный Studio playtest не проверяет телепортацию между place.

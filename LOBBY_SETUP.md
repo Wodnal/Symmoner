@@ -1,6 +1,6 @@
 # Lobby queue prototype
 
-1. Publish the experience and add/publish a destination place within the same experience. Set `DESTINATION_PLACE_ID` at the top of `src/lobby/Lobby.server.luau` to the destination **place ID** (not the universe ID). The default `0` disables starting.
+1. Publish the experience and destination place within the same experience. `DESTINATION_PLACE_ID` in `src/lobby/Lobby.server.luau` is configured as `85770153975326`; the lobby place ID is `101772489442671`. Confirm both are places in the same experience before testing.
 2. Put `Lobby.server.luau` in `ServerScriptService` as a Script and `Lobby.client.luau` in `StarterPlayer > StarterPlayerScripts` as a LocalScript. The server creates its own `ReplicatedStorage/LobbyQueue` remotes. Do not install multiple copies.
 3. The existing `default.project.json` does not map `src/lobby`; copy the scripts manually or add separate Rojo mappings in your own project configuration. The existing round prototype runs independently and should be disabled in the lobby place if its automatic round conflicts with this queue.
 4. Join the published lobby with multiple accounts. Create a room, join it (up to six players), then have the host start the ten-second countdown. Leaving during the countdown cancels it; if the host leaves, the next member becomes host. Starting alone is allowed. Rooms exist only within one lobby server and are not persisted or matched across servers.

@@ -3,7 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 
 -- Set this to a published place in this experience before enabling teleports.
-local DESTINATION_PLACE_ID = 0
+local DESTINATION_PLACE_ID = 85770153975326
 local CAPACITY = 6
 local COUNTDOWN_SECONDS = 10
 local TELEPORT_TIMEOUT = 30
