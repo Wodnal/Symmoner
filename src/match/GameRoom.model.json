@@ -1,0 +1,18 @@
+{
+  "className": "Model",
+  "children": [
+    {"name":"Floor","className":"Part","properties":{"Anchored":true,"Size":[90,2,90],"Position":[0,0,0],"Color":[0.22,0.18,0.16]}},
+    {"name":"NorthWall","className":"Part","properties":{"Anchored":true,"Size":[90,20,2],"Position":[0,11,-44],"Color":[0.16,0.13,0.12]}},
+    {"name":"SouthWall","className":"Part","properties":{"Anchored":true,"Size":[90,20,2],"Position":[0,11,44],"Color":[0.16,0.13,0.12]}},
+    {"name":"WestWall","className":"Part","properties":{"Anchored":true,"Size":[2,20,90],"Position":[-44,11,0],"Color":[0.16,0.13,0.12]}},
+    {"name":"EastWall","className":"Part","properties":{"Anchored":true,"Size":[2,20,90],"Position":[44,11,0],"Color":[0.16,0.13,0.12]}},
+    {"name":"Ceiling","className":"Part","properties":{"Anchored":true,"Size":[90,2,90],"Position":[0,22,0],"Color":[0.12,0.11,0.1]}},
+    {"name":"MatchSpawn","className":"SpawnLocation","properties":{"Anchored":true,"Size":[6,1,6],"Position":[0,2,15],"Neutral":true}},
+    {"name":"Table","className":"Part","properties":{"Anchored":true,"Size":[12,3,12],"Position":[0,2.5,0],"Color":[0.27,0.17,0.12]}},
+    {"name":"Board","className":"Part","properties":{"Anchored":true,"Size":[10,0.4,10],"Position":[0,4.2,0],"Color":[0.5,0.32,0.18]}},
+    {"name":"Search1","className":"Part","properties":{"Anchored":true,"Size":[4,3,4],"Position":[-25,2.5,-25],"Color":[0.35,0.31,0.22]}},
+    {"name":"Search2","className":"Part","properties":{"Anchored":true,"Size":[4,3,4],"Position":[25,2.5,-25],"Color":[0.35,0.31,0.22]}},
+    {"name":"Search3","className":"Part","properties":{"Anchored":true,"Size":[4,3,4],"Position":[-25,2.5,25],"Color":[0.35,0.31,0.22]}},
+    {"name":"Search4","className":"Part","properties":{"Anchored":true,"Size":[4,3,4],"Position":[25,2.5,25],"Color":[0.35,0.31,0.22]}}
+  ]
+}

@@ -13,26 +13,14 @@ local useDice = Instance.new("RemoteEvent")
 useDice.Name = "UseDice"
 useDice.Parent = state
 
-local world = Instance.new("Folder")
-world.Name = "SymmonnerPrototype"
-world.Parent = Workspace
-local function makePart(name, size, position, color)
-	local p = Instance.new("Part")
-	p.Name = name
-	p.Anchored = true
-	p.Size = size
-	p.Position = position
-	p.Color = color
-	p.Parent = world
-	return p
+local world = Workspace:WaitForChild("GameRoom")
+local board = world:WaitForChild("Board")
+local spawn = world:WaitForChild("MatchSpawn")
+for _, object in Workspace:GetDescendants() do
+	if object:IsA("SpawnLocation") and object ~= spawn then
+		object.Enabled = false
+	end
 end
-makePart("Floor", Vector3.new(90, 2, 90), Vector3.new(0, 0, 0), Color3.fromRGB(55, 45, 40))
-local spawn = Instance.new("SpawnLocation")
-spawn.Anchored = true
-spawn.Position = Vector3.new(0, 2, 15)
-spawn.Parent = world
-local board = makePart("Board", Vector3.new(10, 1, 10), Vector3.new(0, 4, 0), Color3.fromRGB(105, 65, 40))
-makePart("Table", Vector3.new(12, 3, 12), Vector3.new(0, 2, 0), Color3.fromRGB(68, 43, 30))
 local function promptOn(part, action, object)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = action
@@ -84,8 +72,8 @@ boardPrompt.Triggered:Connect(function(player)
 	task.delay(3, function() boardReady = true end)
 end)
 
-for index, position in {Vector3.new(-25, 2, -25), Vector3.new(25, 2, -25), Vector3.new(-25, 2, 25), Vector3.new(25, 2, 25)} do
-	local container = makePart("Search" .. index, Vector3.new(4, 3, 4), position, Color3.fromRGB(90, 80, 55))
+for index = 1, 4 do
+	local container = world:WaitForChild("Search" .. index)
 	local prompt = promptOn(container, "Обыскать", "Старый ящик")
 	local available = true
 	prompt.Triggered:Connect(function(player)
