@@ -1,0 +1,19 @@
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+
+Lighting.ClockTime = 0
+Lighting.Brightness = 1.5
+Lighting.Ambient = Color3.fromRGB(55, 44, 44)
+Lighting.OutdoorAmbient = Color3.fromRGB(20, 20, 25)
+Lighting.FogColor = Color3.fromRGB(40, 34, 39)
+Lighting.FogStart = 25
+Lighting.FogEnd = 125
+local room = Workspace:WaitForChild("GameRoom")
+local board = room:WaitForChild("Board")
+local light = Instance.new("PointLight")
+light.Name = "BoardGlow"
+light.Color = Color3.fromRGB(255, 169, 100)
+light.Brightness = 1.8
+light.Range = 32
+light.Shadows = true
+light.Parent = board

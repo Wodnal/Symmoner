@@ -61,15 +61,40 @@ Players.PlayerRemoving:Connect(function(player)
 	cooldowns[player] = nil
 end)
 
+local BOARD_END = 30
 local boardPrompt = promptOn(board, "Бросить", "Проклятая доска")
 local boardReady = true
+local finished = false
 boardPrompt.Triggered:Connect(function(player)
-	if not boardReady or not near(player, board) then return end
+	if finished or not boardReady or not near(player, board) then return end
 	boardReady = false
+	boardPrompt.Enabled = false
 	local roll = random:NextInteger(1, 6)
-	progress += roll
-	message.Value = player.DisplayName .. " бросает " .. roll .. ". Путь: " .. progress .. "."
-	task.delay(3, function() boardReady = true end)
+	progress = math.min(BOARD_END, progress + roll)
+	if progress >= BOARD_END then
+		finished = true
+		message.Value = "Победа! Команда достигла конца доски: " .. progress .. "/" .. BOARD_END
+		return
+	end
+	local event = random:NextInteger(1, 3)
+	local description
+	if event == 1 then
+		description = "Проклятие ранит всех!"
+		for _, participant in Players:GetPlayers() do
+			local humanoid = participant.Character and participant.Character:FindFirstChildOfClass("Humanoid")
+			if humanoid and humanoid.Health > 0 then humanoid:TakeDamage(10) end
+		end
+	elseif event == 2 then
+		description = "Доска исцеляет команду."
+		for _, participant in Players:GetPlayers() do
+			local humanoid = participant.Character and participant.Character:FindFirstChildOfClass("Humanoid")
+			if humanoid and humanoid.Health > 0 then humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + 10) end
+		end
+	else
+		description = "В доме тихо... пока что."
+	end
+	message.Value = player.DisplayName .. " бросает " .. roll .. " | " .. progress .. "/" .. BOARD_END .. " | " .. description
+	task.delay(4, function() boardReady = true; boardPrompt.Enabled = true end)
 end)
 
 for index = 1, 4 do
