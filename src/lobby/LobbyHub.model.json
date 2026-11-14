@@ -1,0 +1,14 @@
+{
+  "className": "Model",
+  "children": [
+    {"name":"HubFloor","className":"Part","properties":{"Anchored":true,"Size":[140,2,100],"Position":[0,0,0],"Color":[0.12,0.15,0.2],"Material":"Slate"}},
+    {"name":"BackWall","className":"Part","properties":{"Anchored":true,"Size":[140,32,2],"Position":[0,16,-49],"Color":[0.08,0.1,0.14],"Material":"Slate"}},
+    {"name":"LeftWall","className":"Part","properties":{"Anchored":true,"Size":[2,32,100],"Position":[-69,16,0],"Color":[0.08,0.1,0.14],"Material":"Slate"}},
+    {"name":"RightWall","className":"Part","properties":{"Anchored":true,"Size":[2,32,100],"Position":[69,16,0],"Color":[0.08,0.1,0.14],"Material":"Slate"}},
+    {"name":"LobbySpawn","className":"SpawnLocation","properties":{"Anchored":true,"Size":[8,1,8],"Position":[0,2,30],"Neutral":true}},
+    {"name":"QueuePlaza","className":"Part","properties":{"Anchored":true,"Size":[34,1,20],"Position":[0,1,5],"Color":[0.22,0.2,0.26],"Material":"Marble"}},
+    {"name":"RoomPortal","className":"Part","properties":{"Anchored":true,"Size":[12,16,2],"Position":[0,9,-47],"Color":[0.22,0.05,0.3],"Material":"Neon"}},
+    {"name":"LeftLamp","className":"Part","properties":{"Anchored":true,"Size":[2,10,2],"Position":[-35,8,-20],"Color":[0.25,0.16,0.08],"Material":"Wood"}},
+    {"name":"RightLamp","className":"Part","properties":{"Anchored":true,"Size":[2,10,2],"Position":[35,8,-20],"Color":[0.25,0.16,0.08],"Material":"Wood"}}
+  ]
+}

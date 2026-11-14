@@ -2,7 +2,8 @@
   "name": "SymmonnerLobby",
   "tree": {
     "$className": "DataModel",
-    "ServerScriptService": { "Lobby": { "$path": "src/lobby/Lobby.server.luau" } },
+    "Workspace": { "LobbyHub": { "$path": "src/lobby/LobbyHub.model.json" } },
+    "ServerScriptService": { "Lobby": { "$path": "src/lobby/Lobby.server.luau" }, "LobbyAtmosphere": { "$path": "src/lobby/Atmosphere.server.luau" } },
     "StarterPlayer": { "StarterPlayerScripts": { "Lobby": { "$path": "src/lobby/Lobby.client.luau" } } }
   }
 }
