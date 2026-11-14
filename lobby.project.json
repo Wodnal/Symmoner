@@ -1,0 +1,8 @@
+{
+  "name": "SymmonnerLobby",
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": { "Lobby": { "$path": "src/lobby/Lobby.server.luau" } },
+    "StarterPlayer": { "StarterPlayerScripts": { "Lobby": { "$path": "src/lobby/Lobby.client.luau" } } }
+  }
+}

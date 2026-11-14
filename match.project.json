@@ -1,0 +1,8 @@
+{
+  "name": "SymmonnerMatch",
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": { "Symmonner": { "$path": "src/match/server" } },
+    "StarterPlayer": { "StarterPlayerScripts": { "Symmonner": { "$path": "src/match/client" } } }
+  }
+}

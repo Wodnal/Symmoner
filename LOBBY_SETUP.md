@@ -1,0 +1,8 @@
+# Lobby queue prototype
+
+1. Publish the experience and add/publish a destination place within the same experience. Set `DESTINATION_PLACE_ID` at the top of `src/lobby/Lobby.server.luau` to the destination **place ID** (not the universe ID). The default `0` disables starting.
+2. Put `Lobby.server.luau` in `ServerScriptService` as a Script and `Lobby.client.luau` in `StarterPlayer > StarterPlayerScripts` as a LocalScript. The server creates its own `ReplicatedStorage/LobbyQueue` remotes. Do not install multiple copies.
+3. The existing `default.project.json` does not map `src/lobby`; copy the scripts manually or add separate Rojo mappings in your own project configuration. The existing round prototype runs independently and should be disabled in the lobby place if its automatic round conflicts with this queue.
+4. Join the published lobby with multiple accounts. Create a room, join it (up to six players), then have the host start the ten-second countdown. Leaving during the countdown cancels it; if the host leaves, the next member becomes host. Starting alone is allowed. Rooms exist only within one lobby server and are not persisted or matched across servers.
+
+TeleportAsync reserves a server for the party. Teleports cannot be tested in Studio playtests; use the published Roblox client. A failed initial request reopens the room; individual failures are reported and remaining players can retry when the room reopens, at latest after 30 seconds. Partial teleports can split a party: successful players may already be in the destination, and retrying creates a new reserved server. This prototype does not guarantee atomic party arrival or implement retries/rejoining the same reserved server. Configure destination-side gameplay separately.
