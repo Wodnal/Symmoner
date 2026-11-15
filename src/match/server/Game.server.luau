@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 
 local state = Instance.new("Folder")
 state.Name = "SymmonnerMatch"
@@ -32,6 +33,41 @@ local function promptOn(part, action, object)
 	prompt.MaxActivationDistance = 10
 	prompt.Parent = part
 	return prompt
+end
+local function addDieFaces(part, numbers, color)
+	local order = {Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right, Enum.NormalId.Top, Enum.NormalId.Bottom}
+	for index, faceId in order do
+		local surface = Instance.new("SurfaceGui")
+		surface.Name = "Face" .. index
+		surface.Face = faceId
+		surface.AlwaysOnTop = false
+		surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		surface.PixelsPerStud = 64
+		surface.Parent = part
+		local frame = Instance.new("Frame")
+		frame.Size = UDim2.fromScale(1, 1)
+		frame.BackgroundColor3 = color or Color3.fromRGB(46, 26, 70)
+		frame.BorderSizePixel = 0
+		frame.Parent = surface
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.12, 0)
+		corner.Parent = frame
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(216, 170, 84)
+		stroke.Thickness = 3
+		stroke.Transparency = 0.2
+		stroke.Parent = frame
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Text = numbers[index]
+		label.TextColor3 = Color3.fromRGB(255, 232, 176)
+		label.TextStrokeColor3 = Color3.fromRGB(58, 28, 8)
+		label.TextStrokeTransparency = 0.35
+		label.TextScaled = true
+		label.Font = Enum.Font.GothamBlack
+		label.Parent = frame
+	end
 end
 local inventories = {}
 local cooldowns = {}
@@ -66,12 +102,18 @@ local function updateIdolVisual(player)
 	weld.Part1 = idol
 	weld.Parent = idol
 end
+local clearHeldStageDie
 local function setupPlayer(player)
 	player:SetAttribute("CarriedIdol", 0)
+	player:SetAttribute("HoldingStageDie", false)
 	player:GetAttributeChangedSignal("CarriedIdol"):Connect(function() updateIdolVisual(player) end)
 	local function onCharacter(character)
 		local humanoid = character:WaitForChild("Humanoid")
-		humanoid.Died:Connect(function() player:SetAttribute("CarriedIdol", 0) end)
+		humanoid.Died:Connect(function()
+			player:SetAttribute("CarriedIdol", 0)
+			player:SetAttribute("HoldingStageDie", false)
+			if clearHeldStageDie then clearHeldStageDie(player) end
+		end)
 		task.defer(function() updateIdolVisual(player) end)
 	end
 	player.CharacterAdded:Connect(onCharacter)
@@ -85,6 +127,9 @@ local function setupPlayer(player)
 		count.Name = name
 		count.Parent = folder
 	end
+	folder.Heal.Value = 2
+	folder.Teleport.Value = 1
+	folder.AntiGravity.Value = 1
 end
 Players.PlayerAdded:Connect(setupPlayer)
 for _, player in Players:GetPlayers() do
@@ -102,9 +147,12 @@ local points = 0
 local totalPoints = 0
 local phase = "READY"
 local stageDie
+local dieResolved = false
 local createStageDie
 local boardPrompt = promptOn(board, "Бросить кубик этапа", "Проклятая доска")
+boardPrompt.Enabled = false
 local depositPrompt = promptOn(board, "Сдать идола", "Доска")
+depositPrompt.Enabled = false
 local boardInfo = Instance.new("BillboardGui")
 boardInfo.Name = "BoardInfo"
 boardInfo.Size = UDim2.fromOffset(300, 70)
@@ -120,7 +168,18 @@ boardLabel.TextScaled = true
 boardLabel.Font = Enum.Font.GothamBold
 boardLabel.Parent = boardInfo
 local function updateBoard()
-	if phase == "READY" and not stageDie then createStageDie() elseif phase ~= "READY" and stageDie then stageDie:Destroy(); stageDie = nil end
+	if phase ~= "READY" then
+		for _, participant in Players:GetPlayers() do
+			if participant:GetAttribute("HoldingStageDie") then
+				participant:SetAttribute("HoldingStageDie", false)
+				if clearHeldStageDie then clearHeldStageDie(participant) end
+			end
+		end
+	end
+	if phase == "READY" and (not stageDie or dieResolved) then
+		dieResolved = false
+		createStageDie()
+	end
 	if phase == "READY" then
 		boardLabel.Text = "КУБИК ГОТОВ\nВернитесь в безопасную зону!"
 	elseif phase == "EXPLORE" then
@@ -128,7 +187,7 @@ local function updateBoard()
 	else
 		boardLabel.Text = "ПОБЕДА!"
 	end
-	boardPrompt.Enabled = phase == "READY"
+	boardPrompt.Enabled = false
 	depositPrompt.Enabled = phase == "EXPLORE"
 end
 local function insideSafeZone(root)
@@ -138,6 +197,37 @@ end
 local resetIdols
 local stagePrompt
 local rollStage = Instance.new("BindableEvent")
+clearHeldStageDie = function(player)
+	local character = player.Character
+	local held = character and character:FindFirstChild("HeldStageDie")
+	if held then held:Destroy() end
+end
+local function createHeldStageDie(player)
+	clearHeldStageDie(player)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+	local held = Instance.new("Part")
+	held.Name = "HeldStageDie"
+	held.Size = Vector3.new(1.25, 1.25, 1.25)
+	held.Color = Color3.fromRGB(116, 60, 165)
+	held.Material = Enum.Material.Neon
+	held.CanCollide = false
+	held.CanTouch = false
+	held.Massless = true
+	held.CFrame = root.CFrame * CFrame.new(0.95, 0.25, -1.7) * CFrame.Angles(math.rad(-14), math.rad(32), math.rad(6))
+	held.Parent = character
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = root
+	weld.Part1 = held
+	weld.Parent = held
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(190, 90, 255)
+	glow.Brightness = 1.5
+	glow.Range = 8
+	glow.Parent = held
+	addDieFaces(held, {"1", "6", "3", "4", "2", "5"})
+end
 createStageDie = function()
 	if stageDie then stageDie:Destroy() end
 	stageDie = Instance.new("Part")
@@ -146,36 +236,39 @@ createStageDie = function()
 	stageDie.Position = board.Position + Vector3.new(0, 2.1, 0)
 	stageDie.Color = Color3.fromRGB(82, 48, 112)
 	stageDie.Material = Enum.Material.Neon
+	stageDie.Anchored = true
+	stageDie.CanCollide = true
 	stageDie.Parent = world
 	local glow = Instance.new("PointLight")
+	glow.Name = "StageDieGlow"
 	glow.Color = Color3.fromRGB(190, 90, 255)
 	glow.Brightness = 2
 	glow.Range = 14
 	glow.Parent = stageDie
-	local faces = {{Enum.NormalId.Front, "1"}, {Enum.NormalId.Back, "6"}, {Enum.NormalId.Left, "3"}, {Enum.NormalId.Right, "4"}, {Enum.NormalId.Top, "2"}, {Enum.NormalId.Bottom, "5"}}
-	for _, data in faces do
-		local face = Instance.new("SurfaceGui")
-		face.Face = data[1]
-		face.AlwaysOnTop = true
-		face.Parent = stageDie
-		local text = Instance.new("TextLabel")
-		text.Size = UDim2.fromScale(1, 1)
-		text.BackgroundColor3 = Color3.fromRGB(40, 22, 64)
-		text.BackgroundTransparency = 0.15
-		text.Text = data[2]
-		text.TextColor3 = Color3.fromRGB(255, 235, 160)
-		text.TextStrokeTransparency = 0.2
-		text.TextScaled = true
-		text.Font = Enum.Font.GothamBlack
-		text.Parent = face
-	end
+	addDieFaces(stageDie, {"1", "6", "3", "4", "2", "5"})
 	stagePrompt = promptOn(stageDie, "Поднять", "Кубик этапа")
 	stagePrompt.Triggered:Connect(function(player)
 		if phase == "READY" and near(player, board) and not player:GetAttribute("HoldingStageDie") then
 			player:SetAttribute("HoldingStageDie", true)
+			createHeldStageDie(player)
 			stagePrompt.Enabled = false
 			stageDie.Transparency = 1
-			message.Value = player.DisplayName .. " поднял кубик. Бросьте его вручную."
+			stageDie.CanCollide = false
+			local dieGlow = stageDie:FindFirstChild("StageDieGlow")
+			if dieGlow then dieGlow.Enabled = false end
+			message.Value = player.DisplayName .. " поднял кубик. Удерживайте ЛКМ и отпустите, чтобы бросить."
+			task.delay(15, function()
+				if player.Parent and player:GetAttribute("HoldingStageDie") and phase == "READY" and stageDie and stageDie.Parent then
+					player:SetAttribute("HoldingStageDie", false)
+					clearHeldStageDie(player)
+					stageDie.Transparency = 0
+					stageDie.CanCollide = true
+					local dieGlow = stageDie:FindFirstChild("StageDieGlow")
+					if dieGlow then dieGlow.Enabled = true end
+					stagePrompt.Enabled = true
+					message.Value = "Кубик вернулся на доску. Подойдите и поднимите снова."
+				end
+			end)
 		end
 	end)
 end
@@ -213,34 +306,49 @@ local function clearIdolVisual(player)
 	local idol = character and character:FindFirstChild("CarriedIdolVisual")
 	if idol then idol:Destroy() end
 end
-rollStage.Event:Connect(function(player)
-	boardPrompt.Triggered:Fire(player)
-end)
+local performRoll
 throwStage.OnServerEvent:Connect(function(player, direction, power)
 	if phase ~= "READY" or not player:GetAttribute("HoldingStageDie") then return end
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if not root or not near(player, board) or typeof(direction) ~= "Vector3" then return end
 	player:SetAttribute("HoldingStageDie", false)
+	clearHeldStageDie(player)
 	local die = stageDie
 	if not die then return end
 	die.Transparency = 0
-	die.CFrame = root.CFrame * CFrame.new(0, 1, -4)
+	die.CanCollide = true
+	local dieGlow = die:FindFirstChild("StageDieGlow")
+	if dieGlow then dieGlow.Enabled = true end
+	die.CFrame = root.CFrame * CFrame.new(0, 1, -4) * CFrame.Angles(math.rad(random:NextInteger(0, 360)), math.rad(random:NextInteger(0, 360)), 0)
 	die.Anchored = false
 	die:SetNetworkOwner(nil)
-	die.AssemblyLinearVelocity = direction.Unit * math.clamp(tonumber(power) or 28, 18, 45) + Vector3.new(0, 12, 0)
-	die.AssemblyAngularVelocity = Vector3.new(8, 14, 5)
+	die.AssemblyLinearVelocity = direction.Unit * math.clamp(tonumber(power) or 28, 18, 45) + Vector3.new(0, 14, 0)
+	die.AssemblyAngularVelocity = Vector3.new(random:NextNumber(-14, 14), random:NextNumber(-14, 14), random:NextNumber(-14, 14))
 	stagePrompt.Enabled = false
-	task.delay(2.5, function()
+	task.spawn(function()
+		local deadline = os.clock() + 5
+		while os.clock() < deadline do
+			task.wait(0.12)
+			if not die.Parent then return end
+			if die.AssemblyLinearVelocity.Magnitude < 1.6 then break end
+		end
 		if die.Parent and phase == "READY" then
 			die.Anchored = true
-			die.Position = board.Position + Vector3.new(0, 2.1, 0)
+			die.AssemblyLinearVelocity = Vector3.zero
+			die.AssemblyAngularVelocity = Vector3.zero
+			local target = CFrame.new(board.Position + Vector3.new(0, 2.1, 0)) * CFrame.Angles(math.rad(random:NextInteger(0, 359)), math.rad(random:NextInteger(0, 359)), 0)
+			TweenService:Create(die, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = target}):Play()
+			task.wait(0.4)
 			rollStage:Fire(player)
 		end
 	end)
 end)
 boardPrompt.Triggered:Connect(function(player)
 	if phase ~= "READY" or not near(player, board) then return end
+	performRoll(player)
+end)
+performRoll = function(player)
 	phase = "TRANSITION"
 	boardPrompt.Enabled = false
 	local casualties = 0
@@ -257,9 +365,21 @@ boardPrompt.Triggered:Connect(function(player)
 	end
 	local roll = random:NextInteger(1, 6)
 	if stageDie then
-		local face = stageDie:FindFirstChildOfClass("SurfaceGui")
-		local text = face and face:FindFirstChildOfClass("TextLabel")
-		if text then text.Text = tostring(roll) end
+		local up = {
+			[1] = CFrame.Angles(math.rad(90), 0, 0),
+			[2] = CFrame.new(),
+			[3] = CFrame.Angles(0, 0, math.rad(-90)),
+			[4] = CFrame.Angles(0, 0, math.rad(90)),
+			[5] = CFrame.Angles(math.rad(180), 0, 0),
+			[6] = CFrame.Angles(math.rad(-90), 0, 0),
+		}
+		dieResolved = true
+		if stagePrompt then stagePrompt.Enabled = false end
+		stageDie.Anchored = true
+		stageDie.AssemblyLinearVelocity = Vector3.zero
+		stageDie.AssemblyAngularVelocity = Vector3.zero
+		local target = CFrame.new(stageDie.Position) * up[roll]
+		TweenService:Create(stageDie, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = target}):Play()
 		stageDie.Color = Color3.fromRGB(210, 140, 48)
 	end
 	stage += 1
@@ -274,7 +394,8 @@ boardPrompt.Triggered:Connect(function(player)
 		message.Value = "Этап " .. stage .. ": выпало " .. roll .. ", путь " .. progress .. "/" .. BOARD_END .. ". Найдите идолов!" .. (if casualties > 0 then " Вне хаба погибло: " .. casualties else "")
 	end
 	updateBoard()
-end)
+end
+rollStage.Event:Connect(performRoll)
 depositPrompt.Triggered:Connect(function(player)
 	if phase ~= "EXPLORE" or not near(player, board) then return end
 	local value = player:GetAttribute("CarriedIdol") or 0

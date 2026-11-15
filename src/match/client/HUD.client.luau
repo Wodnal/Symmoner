@@ -94,10 +94,19 @@ local carriedText = text(carried, "ИДОЛ: НЕТ", 13, Color3.fromRGB(255, 22
 carriedText.TextXAlignment = Enum.TextXAlignment.Center
 carriedText.Size = UDim2.fromScale(1, 1)
 
-local slots = rounded(gui, Color3.fromRGB(10, 9, 12), 0.3, 10)
+local slots = rounded(gui, Color3.fromRGB(10, 9, 12), 0.22, 12)
 slots.AnchorPoint = Vector2.new(0.5, 1)
 slots.Position = UDim2.new(0.5, 0, 1, -24)
-slots.Size = UDim2.fromOffset(330, 76)
+slots.Size = UDim2.fromOffset(330, 82)
+local slotsStroke = Instance.new("UIStroke")
+slotsStroke.Color = Color3.fromRGB(148, 116, 66)
+slotsStroke.Thickness = 1
+slotsStroke.Transparency = 0.55
+slotsStroke.Parent = slots
+local slotsGradient = Instance.new("UIGradient")
+slotsGradient.Rotation = 90
+slotsGradient.Color = ColorSequence.new(Color3.fromRGB(38, 33, 38), Color3.fromRGB(8, 7, 9))
+slotsGradient.Parent = slots
 local slotLayout = Instance.new("UIListLayout")
 slotLayout.FillDirection = Enum.FillDirection.Horizontal
 slotLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -108,33 +117,52 @@ slotLayout.Parent = slots
 local diceNames = {"Heal", "Teleport", "AntiGravity", "Hazard"}
 local diceLabels = {Heal = "HEAL", Teleport = "TELEPORT", AntiGravity = "FLOAT", Hazard = "HAZARD"}
 local diceColors = {Heal = Color3.fromRGB(50, 158, 91), Teleport = Color3.fromRGB(102, 67, 185), AntiGravity = Color3.fromRGB(61, 132, 183), Hazard = Color3.fromRGB(177, 72, 44)}
+local diceIcons = {Heal = "✚", Teleport = "➤", AntiGravity = "▲", Hazard = "☠"}
 local slotButtons = {}
 for slotNumber = 1, 3 do
 	local slot = Instance.new("TextButton")
 	slot.Text = ""
-	slot.AutoButtonColor = true
-	slot.BackgroundColor3 = Color3.fromRGB(35, 32, 37)
+	slot.AutoButtonColor = false
+	slot.BackgroundColor3 = Color3.fromRGB(44, 39, 46)
 	slot.BorderSizePixel = 0
+	slot.Size = UDim2.fromOffset(96, 66)
 	slot.Parent = slots
 	local slotCorner = Instance.new("UICorner")
-	slotCorner.CornerRadius = UDim.new(0, 6)
+	slotCorner.CornerRadius = UDim.new(0, 8)
 	slotCorner.Parent = slot
-	slot.Size = UDim2.fromOffset(96, 62)
-	local key = text(slot, "[" .. slotNumber .. "]", 11, Color3.fromRGB(190, 184, 176), Enum.Font.GothamBold)
-	key.Position = UDim2.fromOffset(7, 4)
-	key.Size = UDim2.fromOffset(28, 16)
-	local name = text(slot, "EMPTY", 12, Color3.fromRGB(235, 230, 220), Enum.Font.GothamBold)
-	name.Position = UDim2.fromOffset(4, 25)
-	name.Size = UDim2.new(1, -8, 0, 18)
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 90
+	gradient.Color = ColorSequence.new(Color3.fromRGB(96, 88, 100), Color3.fromRGB(26, 22, 28))
+	gradient.Parent = slot
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(198, 158, 94)
+	stroke.Thickness = 1.4
+	stroke.Transparency = 0.5
+	stroke.Parent = slot
+	local keyBadge = rounded(slot, Color3.fromRGB(12, 10, 14), 0.15, 4)
+	keyBadge.Position = UDim2.fromOffset(6, 5)
+	keyBadge.Size = UDim2.fromOffset(18, 18)
+	local key = text(keyBadge, tostring(slotNumber), 11, Color3.fromRGB(228, 206, 164), Enum.Font.GothamBold)
+	key.Size = UDim2.fromScale(1, 1)
+	key.TextXAlignment = Enum.TextXAlignment.Center
+	local icon = text(slot, "?", 24, Color3.fromRGB(126, 118, 132), Enum.Font.GothamBlack)
+	icon.Position = UDim2.fromOffset(0, 8)
+	icon.Size = UDim2.new(1, 0, 0, 26)
+	icon.TextXAlignment = Enum.TextXAlignment.Center
+	local name = text(slot, "EMPTY", 11, Color3.fromRGB(235, 230, 220), Enum.Font.GothamBold)
+	name.Position = UDim2.fromOffset(4, 38)
+	name.Size = UDim2.new(1, -8, 0, 14)
 	name.TextXAlignment = Enum.TextXAlignment.Center
-	local count = text(slot, "×0", 11, Color3.fromRGB(210, 200, 180), Enum.Font.GothamMedium)
-	count.Position = UDim2.fromOffset(4, 43)
-	count.Size = UDim2.new(1, -8, 0, 16)
+	local count = text(slot, "×0", 11, Color3.fromRGB(214, 196, 152), Enum.Font.GothamBold)
+	count.Position = UDim2.fromOffset(4, 51)
+	count.Size = UDim2.new(1, -8, 0, 13)
 	count.TextXAlignment = Enum.TextXAlignment.Center
-	local slotData = {frame = slot, name = name, count = count, action = nil}
+	local slotData = {frame = slot, name = name, count = count, icon = icon, stroke = stroke, action = nil}
 	slot.Activated:Connect(function()
 		if slotData.action then state.UseDice:FireServer(slotData.action) end
 	end)
+	slot.MouseEnter:Connect(function() stroke.Transparency = 0.05 end)
+	slot.MouseLeave:Connect(function() stroke.Transparency = 0.5 end)
 	slotButtons[slotNumber] = slotData
 end
 
@@ -176,8 +204,10 @@ local function refreshSlots()
 			slot.action = name
 			slot.name.Text = diceLabels[name]
 			slot.count.Text = "×" .. amount.Value
+			slot.icon.Text = diceIcons[name]
+			slot.icon.TextColor3 = Color3.fromRGB(255, 242, 210)
 			slot.frame.BackgroundColor3 = diceColors[name]
-			slot.action = name
+			slot.stroke.Color = diceColors[name]
 			index += 1
 		end
 	end
@@ -185,7 +215,10 @@ local function refreshSlots()
 		local slot = slotButtons[index]
 		slot.name.Text = "EMPTY"
 		slot.count.Text = "×0"
-		slot.frame.BackgroundColor3 = Color3.fromRGB(35, 32, 37)
+		slot.icon.Text = "?"
+		slot.icon.TextColor3 = Color3.fromRGB(126, 118, 132)
+		slot.frame.BackgroundColor3 = Color3.fromRGB(44, 39, 46)
+		slot.stroke.Color = Color3.fromRGB(198, 158, 94)
 		slot.action = nil
 		index += 1
 	end
@@ -195,17 +228,43 @@ inventory.ChildAdded:Connect(function(value) value.Changed:Connect(refreshSlots)
 refreshSlots()
 updateVitals()
 
+local holdBarBack = rounded(gui, Color3.fromRGB(20, 16, 20), 0.2, 6)
+holdBarBack.AnchorPoint = Vector2.new(0.5, 1)
+holdBarBack.Position = UDim2.new(0.5, 0, 1, -134)
+holdBarBack.Size = UDim2.fromOffset(220, 10)
+holdBarBack.Visible = false
+local holdBarFill = rounded(holdBarBack, Color3.fromRGB(226, 158, 62), 0, 6)
+holdBarFill.Size = UDim2.fromScale(0, 1)
+
 local holding = false
 local throwStart = 0
+
+local function updateHold()
+	local isHolding = player:GetAttribute("HoldingStageDie") == true
+	throwHint.Text = if isHolding then "Удерживайте ЛКМ и отпустите, чтобы бросить" else "E — поднять кубик   |   ЛКМ — бросить"
+	throwHint.TextColor3 = if isHolding then Color3.fromRGB(255, 214, 130) else Color3.fromRGB(209, 188, 155)
+	if not isHolding then
+		holding = false
+		holdBarBack.Visible = false
+	end
+end
+
 UserInputService.InputBegan:Connect(function(input, processed)
 	if processed or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+	if not player:GetAttribute("HoldingStageDie") then return end
 	holding = true
 	throwStart = os.clock()
+	holdBarBack.Visible = true
+	holdBarFill.Size = UDim2.fromScale(0, 1)
+	TweenService:Create(holdBarFill, TweenInfo.new(2.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.fromScale(1, 1)}):Play()
 end)
 UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType ~= Enum.UserInputType.MouseButton1 or not holding then return end
 	holding = false
+	holdBarBack.Visible = false
 	local camera = workspace.CurrentCamera
 	local direction = camera and camera.CFrame.LookVector or Vector3.new(0, 0, -1)
 	state.ThrowStage:FireServer(direction, math.clamp(18 + (os.clock() - throwStart) * 12, 18, 45))
 end)
+player:GetAttributeChangedSignal("HoldingStageDie"):Connect(updateHold)
+updateHold()
