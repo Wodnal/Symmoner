@@ -340,7 +340,7 @@ throwStage.OnServerEvent:Connect(function(player, direction, power)
 			local target = CFrame.new(board.Position + Vector3.new(0, 2.1, 0)) * CFrame.Angles(math.rad(random:NextInteger(0, 359)), math.rad(random:NextInteger(0, 359)), 0)
 			TweenService:Create(die, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = target}):Play()
 			task.wait(0.4)
-			rollStage:Fire(player)
+			rollStage:Fire(player, true)
 		end
 	end)
 end)
@@ -348,7 +348,9 @@ boardPrompt.Triggered:Connect(function(player)
 	if phase ~= "READY" or not near(player, board) then return end
 	performRoll(player)
 end)
-performRoll = function(player)
+performRoll = function(player, forced)
+	if phase ~= "READY" then return end
+	if not forced and not near(player, board) then return end
 	phase = "TRANSITION"
 	boardPrompt.Enabled = false
 	local casualties = 0
@@ -413,6 +415,17 @@ depositPrompt.Triggered:Connect(function(player)
 	updateBoard()
 end)
 updateBoard()
+
+Players.PlayerRemoving:Connect(function(player)
+	if player:GetAttribute("HoldingStageDie") and phase == "READY" and stageDie and stageDie.Parent then
+		stageDie.Transparency = 0
+		stageDie.CanCollide = true
+		local glow = stageDie:FindFirstChild("StageDieGlow")
+		if glow then glow.Enabled = true end
+		if stagePrompt then stagePrompt.Enabled = true end
+		message.Value = "Кубик вернулся на доску."
+	end
+end)
 
 local searches = {}
 resetIdols = function()
