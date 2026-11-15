@@ -10,9 +10,12 @@ local message = Instance.new("StringValue")
 message.Name = "Message"
 message.Value = "Исследуйте комнату и бросайте кубик на доске."
 message.Parent = state
-local useDice = Instance.new("RemoteEvent")
-useDice.Name = "UseDice"
-useDice.Parent = state
+local takeItem = Instance.new("RemoteEvent")
+takeItem.Name = "TakeItem"
+takeItem.Parent = state
+local throwItem = Instance.new("RemoteEvent")
+throwItem.Name = "ThrowItem"
+throwItem.Parent = state
 local throwStage = Instance.new("RemoteEvent")
 throwStage.Name = "ThrowStage"
 throwStage.Parent = state
@@ -74,6 +77,14 @@ local cooldowns = {}
 local progress = 0
 local random = Random.new()
 local names = {"Heal", "Teleport", "AntiGravity", "Hazard"}
+local clearHeldDieVisual
+local returnHeldDie
+returnHeldDie = function(player)
+	local name = player:GetAttribute("HeldItem")
+	if type(name) ~= "string" or name == "" then return end
+	player:SetAttribute("HeldItem", "")
+	if clearHeldDieVisual then clearHeldDieVisual(player) end
+end
 local function near(player, object)
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -106,12 +117,14 @@ local clearHeldStageDie
 local function setupPlayer(player)
 	player:SetAttribute("CarriedIdol", 0)
 	player:SetAttribute("HoldingStageDie", false)
+	player:SetAttribute("HeldItem", "")
 	player:GetAttributeChangedSignal("CarriedIdol"):Connect(function() updateIdolVisual(player) end)
 	local function onCharacter(character)
 		local humanoid = character:WaitForChild("Humanoid")
 		humanoid.Died:Connect(function()
 			player:SetAttribute("CarriedIdol", 0)
 			player:SetAttribute("HoldingStageDie", false)
+			returnHeldDie(player)
 			if clearHeldStageDie then clearHeldStageDie(player) end
 		end)
 		task.defer(function() updateIdolVisual(player) end)
@@ -151,8 +164,6 @@ local dieResolved = false
 local createStageDie
 local boardPrompt = promptOn(board, "Бросить кубик этапа", "Проклятая доска")
 boardPrompt.Enabled = false
-local depositPrompt = promptOn(board, "Сдать идола", "Доска")
-depositPrompt.Enabled = false
 local boardInfo = Instance.new("BillboardGui")
 boardInfo.Name = "BoardInfo"
 boardInfo.Size = UDim2.fromOffset(300, 70)
@@ -188,7 +199,52 @@ local function updateBoard()
 		boardLabel.Text = "ПОБЕДА!"
 	end
 	boardPrompt.Enabled = false
-	depositPrompt.Enabled = phase == "EXPLORE"
+end
+local function addIdolPoints(value, who)
+	points += value
+	totalPoints += value
+	if points >= TARGET_POINTS then
+		phase = "READY"
+		message.Value = "Следующий кубик готов! Все игроки должны вернуться к доске."
+	else
+		message.Value = (who and (who .. " отдаёт идола: +" .. value) or ("Идол упал на доску: +" .. value)) .. ". Осталось " .. (TARGET_POINTS - points)
+	end
+	updateBoard()
+end
+local function flyIdolToBoard(player, value)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local start = root and (root.CFrame * CFrame.new(1.3, 0.6, -1.1)).Position or (board.Position + Vector3.new(0, 6, 0))
+	local finish = board.Position + Vector3.new(0, 3.6, 0)
+	local idol = Instance.new("Part")
+	idol.Name = "FlyingIdol"
+	idol.Shape = Enum.PartType.Ball
+	idol.Size = Vector3.new(1.3, 1.8, 1.3)
+	idol.Color = value >= 200 and Color3.fromRGB(178, 78, 255) or Color3.fromRGB(255, 186, 52)
+	idol.Material = Enum.Material.Neon
+	idol.Anchored = true
+	idol.CanCollide = false
+	idol.CFrame = CFrame.new(start)
+	idol.Parent = Workspace
+	local light = Instance.new("PointLight")
+	light.Color = idol.Color
+	light.Brightness = 2.2
+	light.Range = 12
+	light.Parent = idol
+	task.spawn(function()
+		local duration = 0.75
+		local elapsed = 0
+		while elapsed < duration and idol.Parent do
+			elapsed += task.wait()
+			local a = math.clamp(elapsed / duration, 0, 1)
+			local position = start:Lerp(finish, a) + Vector3.new(0, math.sin(a * math.pi) * 5, 0)
+			idol.CFrame = CFrame.new(position) * CFrame.Angles(0, a * 14, 0)
+		end
+		if idol.Parent then
+			idol:Destroy()
+			addIdolPoints(value, player.DisplayName)
+		end
+	end)
 end
 local function insideSafeZone(root)
 	local offset = root.Position - board.Position
@@ -227,6 +283,53 @@ local function createHeldStageDie(player)
 	glow.Range = 8
 	glow.Parent = held
 	addDieFaces(held, {"1", "6", "3", "4", "2", "5"})
+end
+local diceColors = {Heal = Color3.fromRGB(60, 176, 102), Teleport = Color3.fromRGB(130, 90, 230), AntiGravity = Color3.fromRGB(90, 168, 224), Hazard = Color3.fromRGB(226, 96, 58)}
+local diceIcons = {Heal = "✚", Teleport = "➤", AntiGravity = "▲", Hazard = "☠"}
+clearHeldDieVisual = function(player)
+	local character = player.Character
+	local held = character and character:FindFirstChild("HeldDie")
+	if held then held:Destroy() end
+end
+local function createHeldDieVisual(player, name)
+	clearHeldDieVisual(player)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+	local held = Instance.new("Part")
+	held.Name = "HeldDie"
+	held.Size = Vector3.new(1.15, 1.15, 1.15)
+	held.Color = diceColors[name] or Color3.fromRGB(116, 60, 165)
+	held.Material = Enum.Material.Neon
+	held.CanCollide = false
+	held.CanTouch = false
+	held.Massless = true
+	held.CFrame = root.CFrame * CFrame.new(-0.95, 0.25, -1.7) * CFrame.Angles(math.rad(-12), math.rad(-28), 0)
+	held.Parent = character
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = root
+	weld.Part1 = held
+	weld.Parent = held
+	local glow = Instance.new("PointLight")
+	glow.Color = held.Color
+	glow.Brightness = 1.4
+	glow.Range = 8
+	glow.Parent = held
+	addDieFaces(held, {"1", "6", "3", "4", "2", "5"})
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.fromOffset(56, 56)
+	billboard.StudsOffset = Vector3.new(0, 1.3, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = held
+	local icon = Instance.new("TextLabel")
+	icon.Size = UDim2.fromScale(1, 1)
+	icon.BackgroundTransparency = 1
+	icon.Text = diceIcons[name] or "?"
+	icon.TextColor3 = Color3.fromRGB(255, 246, 218)
+	icon.TextScaled = true
+	icon.Font = Enum.Font.GothamBlack
+	icon.TextStrokeTransparency = 0.15
+	icon.Parent = billboard
 end
 createStageDie = function()
 	if stageDie then stageDie:Destroy() end
@@ -396,25 +499,33 @@ performRoll = function(player, forced)
 		message.Value = "Этап " .. stage .. ": выпало " .. roll .. ", путь " .. progress .. "/" .. BOARD_END .. ". Найдите идолов!" .. (if casualties > 0 then " Вне хаба погибло: " .. casualties else "")
 	end
 	updateBoard()
+	task.delay(1.6, function()
+		if phase ~= "READY" and stageDie then
+			stageDie:Destroy()
+			stageDie = nil
+		end
+	end)
 end
 rollStage.Event:Connect(performRoll)
-depositPrompt.Triggered:Connect(function(player)
-	if phase ~= "EXPLORE" or not near(player, board) then return end
-	local value = player:GetAttribute("CarriedIdol") or 0
-	if value <= 0 then return end
-	player:SetAttribute("CarriedIdol", 0)
-	clearIdolVisual(player)
-	points += value
-	totalPoints += value
-	if points >= TARGET_POINTS then
-		phase = "READY"
-		message.Value = "Следующий кубик готов! Все игроки должны вернуться к доске."
-	else
-		message.Value = player.DisplayName .. " сдаёт идола: +" .. value .. ". Осталось " .. (TARGET_POINTS - points)
-	end
-	updateBoard()
-end)
 updateBoard()
+
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		for _, participant in Players:GetPlayers() do
+			local value = participant:GetAttribute("CarriedIdol") or 0
+			if value > 0 then
+				local character = participant.Character
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				if phase == "EXPLORE" and root and humanoid and humanoid.Health > 0 and (root.Position - board.Position).Magnitude <= 10 then
+					participant:SetAttribute("CarriedIdol", 0)
+					flyIdolToBoard(participant, value)
+				end
+			end
+		end
+	end
+end)
 
 Players.PlayerRemoving:Connect(function(player)
 	if player:GetAttribute("HoldingStageDie") and phase == "READY" and stageDie and stageDie.Parent then
@@ -468,61 +579,157 @@ for index = 1, 4 do
 	end)
 end
 
-useDice.OnServerEvent:Connect(function(player, name)
+takeItem.OnServerEvent:Connect(function(player, name)
 	if typeof(name) ~= "string" or not table.find(names, name) then return end
-	local now = os.clock()
-	if cooldowns[player] and now - cooldowns[player] < 1 then return end
-	cooldowns[player] = now
 	local character = player.Character
-	local root = character and character:FindFirstChild("HumanoidRootPart")
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then return end
+	if (player:GetAttribute("CarriedIdol") or 0) > 0 then
+		message.Value = "Идол занимает руки. Донесите его к доске или бросьте на G."
+		return
+	end
 	local inventory = inventories[player]
-	local die = inventory and inventory:FindFirstChild(name)
-	if not root or not humanoid or humanoid.Health <= 0 or not die or die.Value < 1 then return end
-	die.Value -= 1
-	local projectile = Instance.new("Part")
-	projectile.Name = "ThrownDie"
-	projectile.Size = Vector3.new(1.2, 1.2, 1.2)
-	projectile.Material = Enum.Material.Neon
-	local colors = {Heal = Color3.fromRGB(80, 220, 120), Teleport = Color3.fromRGB(130, 90, 230), AntiGravity = Color3.fromRGB(120, 200, 255), Hazard = Color3.fromRGB(255, 100, 50)}
-	projectile.Color = colors[name]
-	projectile.CFrame = root.CFrame * CFrame.new(0, 1, -4)
-	projectile.Parent = Workspace
-	projectile:SetNetworkOwner(nil)
-	projectile.AssemblyLinearVelocity = root.CFrame.LookVector * 30 + Vector3.new(0, 17, 0)
-	projectile.AssemblyAngularVelocity = Vector3.new(8, 12, 7)
-	message.Value = player.DisplayName .. " бросает кубик: " .. name
-	task.delay(2, function()
-		if not projectile.Parent then return end
-		local position = projectile.Position
-		projectile.Anchored = true
-		projectile.CanCollide = false
-		projectile.Transparency = 0.6
-		local effect = Instance.new("PointLight")
-		effect.Color = colors[name]
-		effect.Brightness = 5
-		effect.Range = 16
-		effect.Parent = projectile
-		if name == "Heal" or name == "Hazard" then
-			for _, target in Players:GetPlayers() do
-				local targetCharacter = target.Character
-				local targetRoot = targetCharacter and targetCharacter:FindFirstChild("HumanoidRootPart")
-				local targetHumanoid = targetCharacter and targetCharacter:FindFirstChildOfClass("Humanoid")
-				if targetRoot and targetHumanoid and targetHumanoid.Health > 0 and (targetRoot.Position - position).Magnitude <= 12 then
-					if name == "Heal" then targetHumanoid.Health = math.min(targetHumanoid.MaxHealth, targetHumanoid.Health + 25) else targetHumanoid:TakeDamage(20) end
+	local count = inventory and inventory:FindFirstChild(name)
+	if not count then return end
+	if player:GetAttribute("HeldItem") == name then
+		returnHeldDie(player)
+		message.Value = "Кубик убран в инвентарь."
+		return
+	end
+	if count.Value < 1 then return end
+	returnHeldDie(player)
+	player:SetAttribute("HeldItem", name)
+	createHeldDieVisual(player, name)
+	message.Value = player.DisplayName .. " берёт кубик " .. name .. ". Удерживайте ЛКМ, чтобы бросить."
+end)
+
+local function applyDieEffect(player, name, position, character, root, humanoid)
+	if name == "Heal" or name == "Hazard" then
+		for _, target in Players:GetPlayers() do
+			local targetCharacter = target.Character
+			local targetRoot = targetCharacter and targetCharacter:FindFirstChild("HumanoidRootPart")
+			local targetHumanoid = targetCharacter and targetCharacter:FindFirstChildOfClass("Humanoid")
+			if targetRoot and targetHumanoid and targetHumanoid.Health > 0 and (targetRoot.Position - position).Magnitude <= 12 then
+				if name == "Heal" then
+					targetHumanoid.Health = math.min(targetHumanoid.MaxHealth, targetHumanoid.Health + 25)
+				else
+					targetHumanoid:TakeDamage(20)
 				end
 			end
-		elseif name == "Teleport" and player.Character == character and humanoid.Health > 0 then
+		end
+	elseif name == "Teleport" then
+		if player.Character == character and humanoid.Health > 0 then
 			character:PivotTo(CFrame.new(0, 5, 15))
-		elseif name == "AntiGravity" and root.Parent and humanoid.Health > 0 then
+		end
+	elseif name == "AntiGravity" then
+		if root.Parent and humanoid.Health > 0 then
 			local attachment = Instance.new("Attachment")
 			attachment.Parent = root
 			local force = Instance.new("VectorForce")
 			force.Attachment0 = attachment
 			force.Force = Vector3.new(0, root.AssemblyMass * Workspace.Gravity * 0.65, 0)
 			force.Parent = root
-			task.delay(5, function() force:Destroy(); attachment:Destroy() end)
+			task.delay(5, function()
+				force:Destroy()
+				attachment:Destroy()
+			end)
 		end
+	end
+end
+
+local function throwMagicDie(player, name, direction, power)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not root or not humanoid or humanoid.Health <= 0 then return end
+	local inventory = inventories[player]
+	local count = inventory and inventory:FindFirstChild(name)
+	if not count or count.Value < 1 then return end
+	count.Value -= 1
+	player:SetAttribute("HeldItem", "")
+	clearHeldDieVisual(player)
+	local projectile = Instance.new("Part")
+	projectile.Name = "ThrownDie"
+	projectile.Size = Vector3.new(1.2, 1.2, 1.2)
+	projectile.Material = Enum.Material.Neon
+	projectile.Color = diceColors[name] or Color3.fromRGB(140, 100, 220)
+	projectile.CFrame = root.CFrame * CFrame.new(0, 1, -3) * CFrame.Angles(math.rad(random:NextInteger(0, 360)), math.rad(random:NextInteger(0, 360)), 0)
+	addDieFaces(projectile, {"1", "6", "3", "4", "2", "5"})
+	projectile.Parent = Workspace
+	projectile:SetNetworkOwner(nil)
+	projectile.AssemblyLinearVelocity = direction * math.clamp(power, 20, 55) + Vector3.new(0, 12, 0)
+	projectile.AssemblyAngularVelocity = Vector3.new(random:NextNumber(-12, 12), random:NextNumber(-12, 12), random:NextNumber(-12, 12))
+	message.Value = player.DisplayName .. " бросает кубик: " .. name
+	task.delay(2, function()
+		if not projectile.Parent then return end
+		local position = projectile.Position
+		projectile.Anchored = true
+		projectile.CanCollide = false
+		projectile.Transparency = 0.55
+		local effect = Instance.new("PointLight")
+		effect.Color = projectile.Color
+		effect.Brightness = 5
+		effect.Range = 16
+		effect.Parent = projectile
+		applyDieEffect(player, name, position, character, root, humanoid)
 		task.delay(1, function() projectile:Destroy() end)
 	end)
+end
+
+local function throwIdol(player, value, direction, power)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+	player:SetAttribute("CarriedIdol", 0)
+	clearIdolVisual(player)
+	local idol = Instance.new("Part")
+	idol.Name = "IdolPickup"
+	idol.Shape = Enum.PartType.Ball
+	idol.Size = Vector3.new(1.5, 2.1, 1.5)
+	idol.Color = value >= 200 and Color3.fromRGB(178, 78, 255) or Color3.fromRGB(255, 186, 52)
+	idol.Material = Enum.Material.Neon
+	idol.CFrame = root.CFrame * CFrame.new(0, 1, -2)
+	idol.Parent = Workspace
+	idol:SetNetworkOwner(nil)
+	idol.AssemblyLinearVelocity = direction * math.clamp(power, 18, 45) + Vector3.new(0, 14, 0)
+	idol.AssemblyAngularVelocity = Vector3.new(random:NextNumber(-6, 6), random:NextNumber(-6, 6), random:NextNumber(-6, 6))
+	local light = Instance.new("PointLight")
+	light.Color = idol.Color
+	light.Brightness = 1.8
+	light.Range = 12
+	light.Parent = idol
+	local prompt = promptOn(idol, "Поднять", "Идол на " .. value .. " очков")
+	prompt.Triggered:Connect(function(picker)
+		if not idol.Parent then return end
+		if (picker:GetAttribute("CarriedIdol") or 0) > 0 then return end
+		if (picker:GetAttribute("HeldItem") or "") ~= "" then
+			message.Value = "Сначала уберите кубик из рук."
+			return
+		end
+		idol:Destroy()
+		picker:SetAttribute("CarriedIdol", value)
+		message.Value = picker.DisplayName .. " поднимает идола на " .. value .. " очков."
+	end)
+	task.delay(1.4, function()
+		if idol.Parent and phase == "EXPLORE" and (idol.Position - board.Position).Magnitude <= 9 then
+			idol:Destroy()
+			addIdolPoints(value, nil)
+		end
+	end)
+	message.Value = player.DisplayName .. " бросает идола на " .. value .. " очков."
+end
+
+throwItem.OnServerEvent:Connect(function(player, kind, direction, power)
+	if typeof(direction) ~= "Vector3" or direction.Magnitude < 0.05 then return end
+	local unit = direction.Unit
+	local amount = math.clamp(tonumber(power) or 28, 18, 55)
+	if kind == "Die" then
+		local name = player:GetAttribute("HeldItem")
+		if type(name) ~= "string" or name == "" or not table.find(names, name) then return end
+		throwMagicDie(player, name, unit, amount)
+	elseif kind == "Idol" then
+		local value = player:GetAttribute("CarriedIdol") or 0
+		if value <= 0 then return end
+		throwIdol(player, value, unit, amount)
+	end
 end)
