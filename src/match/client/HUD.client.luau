@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local state = ReplicatedStorage:WaitForChild("SymmonnerMatch")
@@ -45,6 +46,11 @@ objective.AnchorPoint = Vector2.new(0.5, 0)
 objective.Position = UDim2.new(0.5, 0, 0, 18)
 objective.Size = UDim2.new(0.58, 0, 0, 48)
 local objectiveText = text(objective, "", 20, Color3.fromRGB(255, 237, 195), Enum.Font.GothamBold)
+local throwHint = text(gui, "E — поднять кубик   |   ЛКМ — бросить", 13, Color3.fromRGB(209, 188, 155), Enum.Font.GothamMedium)
+throwHint.AnchorPoint = Vector2.new(0.5, 1)
+throwHint.Position = UDim2.new(0.5, 0, 1, -106)
+throwHint.Size = UDim2.fromOffset(330, 24)
+throwHint.TextXAlignment = Enum.TextXAlignment.Center
 objectiveText.TextXAlignment = Enum.TextXAlignment.Center
 objectiveText.Size = UDim2.fromScale(1, 1)
 local objectiveStroke = Instance.new("UIStroke")
@@ -188,3 +194,18 @@ for _, value in inventory:GetChildren() do value.Changed:Connect(refreshSlots) e
 inventory.ChildAdded:Connect(function(value) value.Changed:Connect(refreshSlots); refreshSlots() end)
 refreshSlots()
 updateVitals()
+
+local holding = false
+local throwStart = 0
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+	holding = true
+	throwStart = os.clock()
+end)
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 or not holding then return end
+	holding = false
+	local camera = workspace.CurrentCamera
+	local direction = camera and camera.CFrame.LookVector or Vector3.new(0, 0, -1)
+	state.ThrowStage:FireServer(direction, math.clamp(18 + (os.clock() - throwStart) * 12, 18, 45))
+end)

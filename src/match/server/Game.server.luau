@@ -12,6 +12,9 @@ message.Parent = state
 local useDice = Instance.new("RemoteEvent")
 useDice.Name = "UseDice"
 useDice.Parent = state
+local throwStage = Instance.new("RemoteEvent")
+throwStage.Name = "ThrowStage"
+throwStage.Parent = state
 
 local world = Workspace:WaitForChild("GameRoom")
 local board = world:WaitForChild("Board")
@@ -149,23 +152,32 @@ createStageDie = function()
 	glow.Brightness = 2
 	glow.Range = 14
 	glow.Parent = stageDie
-	local face = Instance.new("SurfaceGui")
-	face.Face = Enum.NormalId.Front
-	face.AlwaysOnTop = true
-	face.Parent = stageDie
-	stagePrompt = promptOn(stageDie, "Бросить", "Кубик этапа")
+	local faces = {{Enum.NormalId.Front, "1"}, {Enum.NormalId.Back, "6"}, {Enum.NormalId.Left, "3"}, {Enum.NormalId.Right, "4"}, {Enum.NormalId.Top, "2"}, {Enum.NormalId.Bottom, "5"}}
+	for _, data in faces do
+		local face = Instance.new("SurfaceGui")
+		face.Face = data[1]
+		face.AlwaysOnTop = true
+		face.Parent = stageDie
+		local text = Instance.new("TextLabel")
+		text.Size = UDim2.fromScale(1, 1)
+		text.BackgroundColor3 = Color3.fromRGB(40, 22, 64)
+		text.BackgroundTransparency = 0.15
+		text.Text = data[2]
+		text.TextColor3 = Color3.fromRGB(255, 235, 160)
+		text.TextStrokeTransparency = 0.2
+		text.TextScaled = true
+		text.Font = Enum.Font.GothamBlack
+		text.Parent = face
+	end
+	stagePrompt = promptOn(stageDie, "Поднять", "Кубик этапа")
 	stagePrompt.Triggered:Connect(function(player)
-		if phase == "READY" and near(player, board) then rollStage:Fire(player) end
+		if phase == "READY" and near(player, board) and not player:GetAttribute("HoldingStageDie") then
+			player:SetAttribute("HoldingStageDie", true)
+			stagePrompt.Enabled = false
+			stageDie.Transparency = 1
+			message.Value = player.DisplayName .. " поднял кубик. Бросьте его вручную."
+		end
 	end)
-	local text = Instance.new("TextLabel")
-	text.Size = UDim2.fromScale(1, 1)
-	text.BackgroundTransparency = 1
-	text.Text = "?"
-	text.TextColor3 = Color3.fromRGB(255, 235, 160)
-	text.TextStrokeTransparency = 0.2
-	text.TextScaled = true
-	text.Font = Enum.Font.GothamBlack
-	text.Parent = face
 end
 local function addPrompt(part, action, object)
 	local prompt = promptOn(part, action, object)
@@ -203,6 +215,29 @@ local function clearIdolVisual(player)
 end
 rollStage.Event:Connect(function(player)
 	boardPrompt.Triggered:Fire(player)
+end)
+throwStage.OnServerEvent:Connect(function(player, direction, power)
+	if phase ~= "READY" or not player:GetAttribute("HoldingStageDie") then return end
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not near(player, board) or typeof(direction) ~= "Vector3" then return end
+	player:SetAttribute("HoldingStageDie", false)
+	local die = stageDie
+	if not die then return end
+	die.Transparency = 0
+	die.CFrame = root.CFrame * CFrame.new(0, 1, -4)
+	die.Anchored = false
+	die:SetNetworkOwner(nil)
+	die.AssemblyLinearVelocity = direction.Unit * math.clamp(tonumber(power) or 28, 18, 45) + Vector3.new(0, 12, 0)
+	die.AssemblyAngularVelocity = Vector3.new(8, 14, 5)
+	stagePrompt.Enabled = false
+	task.delay(2.5, function()
+		if die.Parent and phase == "READY" then
+			die.Anchored = true
+			die.Position = board.Position + Vector3.new(0, 2.1, 0)
+			rollStage:Fire(player)
+		end
+	end)
 end)
 boardPrompt.Triggered:Connect(function(player)
 	if phase ~= "READY" or not near(player, board) then return end
