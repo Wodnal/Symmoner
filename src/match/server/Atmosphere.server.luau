@@ -26,7 +26,31 @@ local board = room:WaitForChild("Board")
 local light = Instance.new("PointLight")
 light.Name = "BoardGlow"
 light.Color = Color3.fromRGB(255, 169, 100)
-light.Brightness = 1.8
+light.Brightness = 2.4
 light.Range = 32
 light.Shadows = true
 light.Parent = board
+local function addLight(name, objectName, color, brightness, range)
+	local object = room:WaitForChild(objectName)
+	local lamp = Instance.new("PointLight")
+	lamp.Name = name
+	lamp.Color = color
+	lamp.Brightness = brightness
+	lamp.Range = range
+	lamp.Shadows = true
+	lamp.Parent = object
+end
+addLight("ChandelierGlow", "Chandelier", Color3.fromRGB(255, 192, 122), 3, 38)
+addLight("CandleGlowLeft", "CandleLeft", Color3.fromRGB(255, 92, 32), 1.8, 14)
+addLight("CandleGlowRight", "CandleRight", Color3.fromRGB(255, 92, 32), 1.8, 14)
+local dust = Instance.new("ParticleEmitter")
+dust.Name = "FloatingDust"
+dust.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+dust.Color = ColorSequence.new(Color3.fromRGB(255, 216, 160))
+dust.LightEmission = 0.25
+dust.Rate = 12
+dust.Lifetime = NumberRange.new(4, 8)
+dust.Speed = NumberRange.new(0.1, 0.4)
+dust.SpreadAngle = Vector2.new(180, 180)
+dust.Size = NumberSequence.new(0.06)
+dust.Parent = room:WaitForChild("Chandelier")
