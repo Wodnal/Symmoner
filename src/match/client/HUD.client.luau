@@ -8,6 +8,8 @@ local inventory = player:WaitForChild("DiceInventory")
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 
+local oldLobbyGui = player:WaitForChild("PlayerGui"):FindFirstChild("LobbyQueueUI")
+if oldLobbyGui then oldLobbyGui:Destroy() end
 local gui = Instance.new("ScreenGui")
 gui.Name = "SymmonnerHUD"
 gui.ResetOnSpawn = false
@@ -165,6 +167,7 @@ local function refreshSlots()
 		local amount = inventory:FindFirstChild(name)
 		if amount and amount.Value > 0 and index <= 3 then
 			local slot = slotButtons[index]
+			slot.action = name
 			slot.name.Text = diceLabels[name]
 			slot.count.Text = "×" .. amount.Value
 			slot.frame.BackgroundColor3 = diceColors[name]

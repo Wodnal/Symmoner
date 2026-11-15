@@ -8,6 +8,7 @@ local update = remotes:WaitForChild("Update")
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "LobbyQueueUI"
+gui:SetAttribute("LobbyOnly", true)
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 

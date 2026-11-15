@@ -133,6 +133,8 @@ local function insideSafeZone(root)
 	return math.abs(offset.X) <= 17 and math.abs(offset.Z) <= 17 and math.abs(offset.Y) <= 12
 end
 local resetIdols
+local stagePrompt
+local rollStage = Instance.new("BindableEvent")
 createStageDie = function()
 	if stageDie then stageDie:Destroy() end
 	stageDie = Instance.new("Part")
@@ -151,6 +153,10 @@ createStageDie = function()
 	face.Face = Enum.NormalId.Front
 	face.AlwaysOnTop = true
 	face.Parent = stageDie
+	stagePrompt = promptOn(stageDie, "Бросить", "Кубик этапа")
+	stagePrompt.Triggered:Connect(function(player)
+		if phase == "READY" and near(player, board) then rollStage:Fire(player) end
+	end)
 	local text = Instance.new("TextLabel")
 	text.Size = UDim2.fromScale(1, 1)
 	text.BackgroundTransparency = 1
@@ -195,6 +201,9 @@ local function clearIdolVisual(player)
 	local idol = character and character:FindFirstChild("CarriedIdolVisual")
 	if idol then idol:Destroy() end
 end
+rollStage.Event:Connect(function(player)
+	boardPrompt.Triggered:Fire(player)
+end)
 boardPrompt.Triggered:Connect(function(player)
 	if phase ~= "READY" or not near(player, board) then return end
 	phase = "TRANSITION"
