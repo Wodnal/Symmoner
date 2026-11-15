@@ -98,6 +98,8 @@ local stage = 0
 local points = 0
 local totalPoints = 0
 local phase = "READY"
+local stageDie
+local createStageDie
 local boardPrompt = promptOn(board, "Бросить кубик этапа", "Проклятая доска")
 local depositPrompt = promptOn(board, "Сдать идола", "Доска")
 local boardInfo = Instance.new("BillboardGui")
@@ -115,6 +117,7 @@ boardLabel.TextScaled = true
 boardLabel.Font = Enum.Font.GothamBold
 boardLabel.Parent = boardInfo
 local function updateBoard()
+	if phase == "READY" and not stageDie then createStageDie() elseif phase ~= "READY" and stageDie then stageDie:Destroy(); stageDie = nil end
 	if phase == "READY" then
 		boardLabel.Text = "КУБИК ГОТОВ\nВернитесь в безопасную зону!"
 	elseif phase == "EXPLORE" then
@@ -130,6 +133,34 @@ local function insideSafeZone(root)
 	return math.abs(offset.X) <= 17 and math.abs(offset.Z) <= 17 and math.abs(offset.Y) <= 12
 end
 local resetIdols
+createStageDie = function()
+	if stageDie then stageDie:Destroy() end
+	stageDie = Instance.new("Part")
+	stageDie.Name = "StageDie"
+	stageDie.Size = Vector3.new(2.2, 2.2, 2.2)
+	stageDie.Position = board.Position + Vector3.new(0, 2.1, 0)
+	stageDie.Color = Color3.fromRGB(82, 48, 112)
+	stageDie.Material = Enum.Material.Neon
+	stageDie.Parent = world
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(190, 90, 255)
+	glow.Brightness = 2
+	glow.Range = 14
+	glow.Parent = stageDie
+	local face = Instance.new("SurfaceGui")
+	face.Face = Enum.NormalId.Front
+	face.AlwaysOnTop = true
+	face.Parent = stageDie
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.Text = "?"
+	text.TextColor3 = Color3.fromRGB(255, 235, 160)
+	text.TextStrokeTransparency = 0.2
+	text.TextScaled = true
+	text.Font = Enum.Font.GothamBlack
+	text.Parent = face
+end
 local function addPrompt(part, action, object)
 	local prompt = promptOn(part, action, object)
 	return prompt
@@ -181,6 +212,12 @@ boardPrompt.Triggered:Connect(function(player)
 		end
 	end
 	local roll = random:NextInteger(1, 6)
+	if stageDie then
+		local face = stageDie:FindFirstChildOfClass("SurfaceGui")
+		local text = face and face:FindFirstChildOfClass("TextLabel")
+		if text then text.Text = tostring(roll) end
+		stageDie.Color = Color3.fromRGB(210, 140, 48)
+	end
 	stage += 1
 	progress = math.min(BOARD_END, progress + roll)
 	if progress >= BOARD_END then
