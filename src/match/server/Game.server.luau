@@ -69,6 +69,7 @@ local function setupPlayer(player)
 	local function onCharacter(character)
 		local humanoid = character:WaitForChild("Humanoid")
 		humanoid.Died:Connect(function() player:SetAttribute("CarriedIdol", 0) end)
+		task.defer(function() updateIdolVisual(player) end)
 	end
 	player.CharacterAdded:Connect(onCharacter)
 	if player.Character then task.spawn(onCharacter, player.Character) end
@@ -129,6 +130,40 @@ local function insideSafeZone(root)
 	return math.abs(offset.X) <= 17 and math.abs(offset.Z) <= 17 and math.abs(offset.Y) <= 12
 end
 local resetIdols
+local function addPrompt(part, action, object)
+	local prompt = promptOn(part, action, object)
+	return prompt
+end
+local function createIdolVisual(player, value)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not character or not root then return end
+	local old = character:FindFirstChild("CarriedIdolVisual")
+	if old then old:Destroy() end
+	local idol = Instance.new("Part")
+	idol.Name = "CarriedIdolVisual"
+	idol.Shape = Enum.PartType.Ball
+	idol.Size = Vector3.new(1.1, 1.4, 1.1)
+	idol.Color = value >= 200 and Color3.fromRGB(170, 60, 255) or Color3.fromRGB(255, 181, 35)
+	idol.Material = Enum.Material.Neon
+	idol.CanCollide = false
+	idol.Massless = true
+	idol.CFrame = root.CFrame * CFrame.new(1.3, 0.1, -1.1)
+	idol.Parent = character
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0, weld.Part1 = root, idol
+	weld.Parent = idol
+	local glow = Instance.new("PointLight")
+	glow.Color = idol.Color
+	glow.Range = 8
+	glow.Brightness = 1.4
+	glow.Parent = idol
+end
+local function clearIdolVisual(player)
+	local character = player.Character
+	local idol = character and character:FindFirstChild("CarriedIdolVisual")
+	if idol then idol:Destroy() end
+end
 boardPrompt.Triggered:Connect(function(player)
 	if phase ~= "READY" or not near(player, board) then return end
 	phase = "TRANSITION"
@@ -164,6 +199,7 @@ depositPrompt.Triggered:Connect(function(player)
 	local value = player:GetAttribute("CarriedIdol") or 0
 	if value <= 0 then return end
 	player:SetAttribute("CarriedIdol", 0)
+	clearIdolVisual(player)
 	points += value
 	totalPoints += value
 	if points >= TARGET_POINTS then
@@ -212,6 +248,7 @@ for index = 1, 4 do
 		local values = {100, 150, 200}
 		local value = values[random:NextInteger(1, #values)]
 		player:SetAttribute("CarriedIdol", value)
+		createIdolVisual(player, value)
 		message.Value = player.DisplayName .. " нашёл идола на " .. value .. " очков. Верните его к доске."
 	end)
 end
